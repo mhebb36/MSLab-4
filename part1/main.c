@@ -37,10 +37,11 @@ void Display_ADC(void);
 // Global variables
 char SFRPAGE_SAVE;
 unsigned short int ADC_result;
-unsigned short int 
 float ADC_voltage;
-float ADC_max = 0;
-float ADC_min = 10;
+unsigned short int ADC_max;
+unsigned short int ADC_min;
+unsigned short int ADC_average;
+unsigned char num_trials;
 
 //------------------------------------------------------------------------------------
 // MAIN Routine
@@ -188,12 +189,49 @@ void Poll_ADC(void)
 
 void Display_ADC(void)
 {
+	int i;
+	unsigned short int total = 0;
+	unsigned short int readings[16];
+
 	SFRPAGE_SAVE = SFRPAGE;
 	// Convert ADC_result to a voltage
 	ADC_voltage = ADC_result / 4096.0 * 2.68;
 	SFRPAGE = UART0_PAGE;
-	printf_fast_f("current: %.6f, %d\r\n", ADC_voltage, ADC_result);
+	num_trials++;
 	// Find max, min, and average
+	if (ADC_result > ADC_max || num_trials == 1)
+		ADC_max = ADC_result;
+	if (ADC_result < ADC_min || num_trials == 1)
+		ADC_min = ADC_result;
+
+
+	readings[(num_trials-1) % 16] = ADC_result;
+	// Sum of last 16 trials (or total trials if less than 16)
+	if (num_trials < 16)
+	{
+		for (i=0; i<num_trials; i++)
+		{
+			total += readings[i];
+		}
+		printf("%d, %d\r\n", readings[0], num_trials);
+		ADC_average = total / num_trials;
+	}
+	else
+	{
+		for (i=0; i<16; i++)
+		{
+			total += readings[i];
+		}
+		ADC_average = total / 16;
+	}
+
+
+	printf_fast_f("Current voltage reading: %f\r\n", ADC_voltage);
+	printf("High ADC reading: 0x%x\r\n", ADC_max);
+	printf("Low ADC reading: 0x%x\r\n", ADC_min);
+	printf("Average of last 16 trials: 0x%x\r\n", ADC_average);
+
+
 	// Make sure pin 1.0 is not low
 	while (P1 == 0xFE);
 	SFRPAGE = SFRPAGE_SAVE;
