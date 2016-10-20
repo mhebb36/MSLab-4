@@ -1,3 +1,4 @@
+
 //------------------------------------------------------------------------------------
 // Hello.c
 //------------------------------------------------------------------------------------
@@ -36,17 +37,18 @@ void Display_ADC(void);
 
 // Global variables
 char SFRPAGE_SAVE;
-unsigned short int ADC_result;
-unsigned short int 
-float ADC_voltage;
-float ADC_max = 0;
-float ADC_min = 10;
+int high;
+int low;
+int average;
+unsigned short int low_byte;
+unsigned short int high_byte;
 
 //------------------------------------------------------------------------------------
 // MAIN Routine
 //------------------------------------------------------------------------------------
 void main(void)
 {
+	unsigned int i;
     WDTCN = 0xDE;                       // Disable the watchdog timer
     WDTCN = 0xAD;
 
@@ -57,13 +59,18 @@ void main(void)
 
     SFRPAGE = UART0_PAGE;               // Direct output to UART0
 
-    printf("\033[2J");                  // Erase screen & move cursor to home position
+    printf("\033[2J??");                  // Erase screen & move cursor to home position
     
     while(1)
     {
-		printf("Ground P1.0 to start ADC...\r\n");
+		printf("Starting program...\r\n");
+   		/*
+		while(1);
 		Poll_ADC();
 		Display_ADC();
+		//for (i=0; i<50000; i++);
+		*/
+		
     }
 }
 
@@ -120,10 +127,10 @@ void PORT_INIT(void)
     XBR0     = 0x04;                    // Enable UART0
     XBR1     = 0x00;
     XBR2     = 0x40;                    // Enable Crossbar and weak pull-up
-    P0MDOUT |= 0x01;                    // Set TX0 on P0.0 pin to push-pull
-    P1MDOUT |= 0x40;                    // Set green LED output P1.6 to push-pull
 
     SFRPAGE  = SFRPAGE_SAVE;            // Restore SFR page
+
+	P1MDOUT = 0x00;			// P1.0 is input
 }
 
 //------------------------------------------------------------------------------------
@@ -169,32 +176,30 @@ void ADC_Init(void)
 
 void Poll_ADC(void)
 {
-	unsigned char *low_byte;
-	unsigned char *high_byte;
-	low_byte = (char *) &ADC_result;
-	high_byte = low_byte + 1;
 	SFRPAGE_SAVE = SFRPAGE;
 	// Poll pin 1.0 until it is low
-	while (P1 == 0xFF);
+	/*
+	while (1)
+	{
+		printf("%d\r\n", P1);
+	}
+	*/
 	SFRPAGE = ADC0_PAGE;
 	// Clear AD0INT to start ADC
 	AD0INT = 0;
 	AD0BUSY = 1;
 	while (!AD0INT) // Wait for conversion to complete
 	SFRPAGE = SFRPAGE_SAVE;
-	*low_byte = ADC0L;
-	*high_byte = ADC0H;
+	low_byte = ADC0L;
+	high_byte = ADC0H;
 }
 
 void Display_ADC(void)
 {
 	SFRPAGE_SAVE = SFRPAGE;
-	// Convert ADC_result to a voltage
-	ADC_voltage = ADC_result / 4096.0 * 2.68;
-	SFRPAGE = UART0_PAGE;
-	printf_fast_f("current: %.6f, %d\r\n", ADC_voltage, ADC_result);
-	// Find max, min, and average
 	// Make sure pin 1.0 is not low
-	while (P1 == 0xFE);
-	SFRPAGE = SFRPAGE_SAVE;
+	while (P1 && 0x00);
+	SFRPAGE = ADC0_PAGE;
+	SFRPAGE = UART0_PAGE;
+	printf("current: %d, %d\r\n", high_byte, low_byte);
 }
